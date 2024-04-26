@@ -2,7 +2,7 @@
 from absl import app
 
 from env import Env
-from runners.basic_runner import Runner
+from runners.main_runner import Runner
 from agents.QLearningAgent import QLearningAgent
 
 _CONFIG = dict(

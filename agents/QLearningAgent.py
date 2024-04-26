@@ -27,14 +27,23 @@ class QLearningAgent(AbstractAgent):
             for y in range(-64, 65):
                 self.states.append((x, y))
         self.q_table = self.init_q_table()
-
-        pass
-
+        self.alpha = 0.1
+        self.gamma = 0.9
+        self.old_state = None
+        self.old_action = None
 
     def step(self, obs):
         # TODO step method
         if self._MOVE_SCREEN.id in obs.observation.available_actions:
-            pass
+            marine = self._get_marine(obs)
+            if marine is None:
+                return self._NO_OP
+            marine_coordinates = self._get_unit_pos(marine)
+            action = self.get_new_action(marine_coordinates)
+            if self.train:
+                pass
+            else:
+                return self._dir_to_sc2_action(action, marine_coordinates)
         else:
             return self._SELECT_ARMY    # initialize army in first step
 
@@ -55,7 +64,9 @@ class QLearningAgent(AbstractAgent):
                             action (str): e.g. 'N', 'NW', 'NO', ...
         """
         # TODO get_new_action method
-        ...
+        index = get_row_index_in_string_format(state)
+        action = np.argmax(self.q_table.loc[index])
+        return self.actions[action]
 
     def get_q_value(self, q_table_column_index, q_table_row_index):
         """
@@ -69,11 +80,22 @@ class QLearningAgent(AbstractAgent):
                             action (float): The value for the given indices.
         """
         # TODO get_new_action method
-        ...
+        q_value = self.q_table.loc[q_table_row_index, q_table_column_index]
+        return float(q_value)
 
     def update_q_value(self, old_state, old_action, new_state, reward, terminal):
         # TODO update_q_value method
-        ...
+        old_state_str = get_row_index_in_string_format(old_state)
+        new_state_str = get_row_index_in_string_format(new_state)
+        q_value = self.q_table[old_state_str, old_action]
+        if not terminal:
+            new_q_value = q_value + self.alpha + (reward + self.gamma * max(self.q_table[new_state_str]) + q_value)
+        else:
+            new_q_value = q_value + self.alpha + (reward - q_value)
+
+        self.q_table[old_state_str, old_action] = new_q_value
+
+
 
     def get_q_state_from_position(self, marine_position, beacon_position):
         """
@@ -87,7 +109,9 @@ class QLearningAgent(AbstractAgent):
                             state ([int, int]): A row index (a state) of the q-table.
         """
         # TODO get_q_state_from_position method
-        ...
+        x_dif = marine_position[0] - beacon_position[0]
+        y_dif = marine_position[1] - beacon_position[1]
+        return (x_dif, y_dif)
 
     def init_q_table(self):
         """
