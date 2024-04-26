@@ -1,0 +1,6 @@
+Gruppe: 
+
+Bearbeitet von:
+Aufgabe 1 (Markov Decision Process) ->
+Aufgabe 2 (Basic Agent) ->
+Aufgabe 3 (Q-Learning) ->
