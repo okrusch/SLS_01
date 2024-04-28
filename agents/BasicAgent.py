@@ -4,6 +4,8 @@ from agents.AbstractAgent import AbstractAgent
 class BasicAgent(AbstractAgent):
     def __init__(self, train, screen_size):
         super(BasicAgent, self).__init__(screen_size)
+        self.old_state = None
+        self.old_action = None
 
     def step(self, obs):
         if self._MOVE_SCREEN.id in obs.observation.available_actions:
@@ -31,6 +33,10 @@ class BasicAgent(AbstractAgent):
                 move += "W"
 
             assert move != ""
+
+            self.old_state = marine_coordinates
+            self.old_action = move
+            x = obs.reward
 
             return self._dir_to_sc2_action(move, marine_coordinates)
         else:

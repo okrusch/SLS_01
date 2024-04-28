@@ -2,11 +2,10 @@
 from absl import app
 
 from env import Env
-from runners.basic_runner import Runner
+from runners.main_runner import Runner
 from agents.QLearningAgent import QLearningAgent
 
 _CONFIG = dict(
-    episodes=100,
     screen_size=64,
     minimap_size=64,
     visualize=False,
@@ -33,7 +32,7 @@ def main(unused_argv):
         train=_CONFIG['train']
     )
 
-    runner.run(episodes=_CONFIG['episodes'])
+    runner.run()
 
 
 if __name__ == "__main__":

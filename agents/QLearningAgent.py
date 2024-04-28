@@ -1,3 +1,5 @@
+import random
+
 from agents.AbstractAgent import AbstractAgent
 import pandas as pd
 import numpy as np
@@ -25,33 +27,64 @@ class QLearningAgent(AbstractAgent):
         self.states = []
         for x in range(-64, 65):
             for y in range(-64, 65):
-                self.states.append((x, y))
+                self.states.append("("+str(x) + "," + str(y) + ")")
         self.q_table = self.init_q_table()
         self.alpha = 0.1
         self.gamma = 0.9
         self.old_state = None
         self.old_action = None
 
-    def step(self, obs):
+    def step(self, obs, epsilon):
         # TODO step method
         if self._MOVE_SCREEN.id in obs.observation.available_actions:
+            # get q_state from position
             marine = self._get_marine(obs)
             if marine is None:
                 return self._NO_OP
             marine_coordinates = self._get_unit_pos(marine)
-            action = self.get_new_action(marine_coordinates)
+            beacon = self._get_beacon(obs)
+            if beacon is None:
+                return self._NO_OP
+            beacon_coordinates = self._get_unit_pos(beacon)
+
+            q_state = self.get_q_state_from_position(marine_position=marine_coordinates,
+                                                     beacon_position=beacon_coordinates)
+
+            # epsilon integration
+            rnd = random.random()
+            if rnd > epsilon:
+                action = self.get_new_action(q_state)
+            else:
+                action = random.choice(list(self.actions))
+
             if self.train:
-                pass
+                if self.old_state == None and self.old_action == None:
+                    # first step where there is no previous state
+                    self.old_state = get_row_index_in_string_format(q_state)
+                    self.old_action = action
+                else:
+                    t = obs.reward == 1 # terminate when beacon reached
+                    self.update_q_value(self.old_state, self.old_action, marine_coordinates, obs.reward, t) # update q_value
+
+                    # set previous state and action
+                    self.old_state = get_row_index_in_string_format(q_state)
+                    self.old_action = action
+
+                return self._dir_to_sc2_action(action, marine_coordinates)
             else:
                 return self._dir_to_sc2_action(action, marine_coordinates)
         else:
+            self.old_state = None
+            self.old_action = None
             return self._SELECT_ARMY    # initialize army in first step
 
     def save_model(self, path):
-        self.q_table.to_pickle(path)
+        # save model as pkl
+        self.q_table.to_pickle(path + ".pkl")
 
     def load_model(self, path):
-        self.q_table = pd.read_pickle(path)
+        # load model from pkl
+        self.q_table = pd.read_pickle(path + ".pkl")
 
     def get_new_action(self, state):
         """
@@ -65,8 +98,12 @@ class QLearningAgent(AbstractAgent):
         """
         # TODO get_new_action method
         index = get_row_index_in_string_format(state)
-        action = np.argmax(self.q_table.loc[index])
-        return self.actions[action]
+        options = self.q_table.loc[index]
+        m = max(options)
+        indices = [index for index, value in enumerate(options) if value == m]
+        choice = random.choice(indices)
+        action = list(self.actions)[choice]
+        return action
 
     def get_q_value(self, q_table_column_index, q_table_row_index):
         """
@@ -80,20 +117,22 @@ class QLearningAgent(AbstractAgent):
                             action (float): The value for the given indices.
         """
         # TODO get_new_action method
-        q_value = self.q_table.loc[q_table_row_index, q_table_column_index]
+        q_value = self.q_table.loc[q_table_column_index][q_table_row_index]
         return float(q_value)
 
     def update_q_value(self, old_state, old_action, new_state, reward, terminal):
         # TODO update_q_value method
-        old_state_str = get_row_index_in_string_format(old_state)
         new_state_str = get_row_index_in_string_format(new_state)
-        q_value = self.q_table[old_state_str, old_action]
+        q_value = self.get_q_value(q_table_column_index=old_state,
+                                   q_table_row_index=old_action)
         if not terminal:
-            new_q_value = q_value + self.alpha + (reward + self.gamma * max(self.q_table[new_state_str]) + q_value)
+            max_new = max(self.q_table.loc[new_state_str])
+            new_q_value = q_value + self.alpha * (reward + (self.gamma * max_new) - q_value)
         else:
-            new_q_value = q_value + self.alpha + (reward - q_value)
+            new_q_value = q_value + self.alpha * (reward - q_value)
+            print("final", old_state, new_q_value)
 
-        self.q_table[old_state_str, old_action] = new_q_value
+        self.q_table.at[old_state, old_action] = new_q_value
 
 
 
@@ -123,3 +162,5 @@ class QLearningAgent(AbstractAgent):
                                                        The column indices must be in the format 'action' (e.g. 'W')
         """
         return pd.DataFrame(np.random.rand(len(self.states), len(self.actions)), index=self.states, columns=self.actions)
+
+        #return pd.DataFrame(0, index=self.states, columns=self.actions)
